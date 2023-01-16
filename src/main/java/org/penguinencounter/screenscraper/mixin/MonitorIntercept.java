@@ -28,5 +28,14 @@ public abstract class MonitorIntercept {
         ByteBuf buffer = ((TSDuck) terminal).getBuffer().copy();
         ScreenScraperClient.LOG_MAIN.info("capture " + terminal.width + " x " + terminal.height + " monitor at " + pos.toString());
         TextOnlyPackage pack = TextOnlyPackage.import_(terminal.width, terminal.height, buffer);
+        if (ScreenScraperClient.INSTANCE == null) {
+            ScreenScraperClient.LOG_MAIN.error("ScreenScraperClient.INSTANCE is null!?");
+            return;
+        }
+        if (ScreenScraperClient.INSTANCE.saveFile(pos, pack)) {
+            ScreenScraperClient.LOG_MAIN.info("Saved monitor data");
+        } else {
+            ScreenScraperClient.LOG_MAIN.warn("Failed to save monitor data");
+        }
     }
 }
