@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "screenscraper",
+  "version": "${version}",
+  "name": "ScreenScraper",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/screenscraper/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "org.penguinencounter.screenscraper.ScreenScraperClient"
+    ]
+  },
+  "mixins": [
+    "screenscraper.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.12",
+    "fabric": "*",
+    "minecraft": "1.19.3"
+  }
+}
