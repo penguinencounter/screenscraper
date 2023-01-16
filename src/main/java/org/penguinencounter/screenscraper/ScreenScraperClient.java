@@ -19,12 +19,39 @@ public class ScreenScraperClient implements ClientModInitializer {
     public static final Logger LOG_MAIN = LoggerFactory.getLogger("ScreenScraper");
     public static ScreenScraperClient INSTANCE;
 
+    /**
+     * matches SemVer (MAJOR.MINOR.PATCH+extra?)
+     * but isn't a development version (contains dev in the 'extra' part)
+     * @param version the version string to check
+     * @return true if the version is a release version
+     */
+    private boolean versionIsOk(String version) {
+        return version.matches("^[0-9]+\\.[0-9]+\\.[0-9]+(?!.*dev.*)(?:\\+.*)?$");
+    }
+
     // Hi admins!
 
     @Override
     public void onInitializeClient() {
-        LOG_MAIN.info("ok");
+        LOG_MAIN.info("ScreenScraper loaded");
         INSTANCE = this;
+        FabricLoader.getInstance().getModContainer("screenscraper").ifPresent(modContainer -> {
+            String ver = modContainer.getMetadata().getVersion().getFriendlyString();
+            boolean okForPublicUse = versionIsOk(ver);
+            boolean isDev = FabricLoader.getInstance().isDevelopmentEnvironment();
+            if (!okForPublicUse) {
+                LOG_MAIN.error("This version of ScreenScraper is not intended (or approved) for public use!");
+                LOG_MAIN.error("Please use a release version instead to avoid bans/warnings.");
+                LOG_MAIN.error("Stable releases at https://github.com/penguinencounter/screenscraper/releases");
+                LOG_MAIN.error("This mod's version is: " + ver);
+            }
+            if (!(okForPublicUse || isDev)) {
+                throw new RuntimeException("Bad ScreenScraper version. Check logs for more details.");
+            }
+            if (isDev) {
+                LOG_MAIN.warn("Looks like a development environment. I guess you can continue.");
+            }
+        });
     }
 
     /**
