@@ -2,11 +2,7 @@ package org.penguinencounter.screenscraper;
 
 import io.netty.buffer.ByteBuf;
 
-public class TextOnlyPackage {
-    private final String data;
-    public TextOnlyPackage(String data) {
-        this.data = data;
-    }
+public record TextOnlyPackage(String data) {
 
     public static TextOnlyPackage import_(int w, int h, ByteBuf data) {
         ScreenScraperClient.LOG_MAIN.info("Import " + data.readableBytes() + " mon bytes");
@@ -27,9 +23,5 @@ public class TextOnlyPackage {
             throw e;
         }
         return new TextOnlyPackage(builder.toString());
-    }
-
-    public String getData() {
-        return data;
     }
 }

@@ -1,6 +1,5 @@
 package org.penguinencounter.screenscraper;
 
-import com.mojang.bridge.launcher.SessionEventListener;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.Environment;
 import net.fabricmc.loader.api.FabricLoader;
@@ -26,10 +25,6 @@ public class ScreenScraperClient implements ClientModInitializer {
     public void onInitializeClient() {
         LOG_MAIN.info("ok");
         INSTANCE = this;
-    }
-
-    public static ScreenScraperClient getInstance() {
-        return INSTANCE;
     }
 
     /**
@@ -68,7 +63,7 @@ public class ScreenScraperClient implements ClientModInitializer {
         File f = file.toFile();
         // Write the file
         try (FileWriter fw = new FileWriter(f)) {
-            fw.write(dataPackage.getData());
+            fw.write(dataPackage.data());
         } catch (IOException e) {
             LOG_MAIN.error("Failed to write file", e);
             return false;
