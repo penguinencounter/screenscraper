@@ -2,22 +2,29 @@ package org.penguinencounter.screenscraper;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 @Environment(net.fabricmc.api.EnvType.CLIENT)
 public class ScreenScraperClient implements ClientModInitializer {
     public static final Logger LOG_MAIN = LoggerFactory.getLogger("ScreenScraper");
     public static ScreenScraperClient INSTANCE;
+
+    public static Map<Byte, String> charRemap = new HashMap<>();
 
     /**
      * matches SemVer (MAJOR.MINOR.PATCH+extra?)
@@ -52,6 +59,51 @@ public class ScreenScraperClient implements ClientModInitializer {
                 LOG_MAIN.warn("Looks like a development environment. I guess you can continue.");
             }
         });
+
+        // Load up the mapping file from assets/screenscraper/charmap
+
+        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(
+            new SimpleSynchronousResourceReloadListener() {
+                @Override
+                public Identifier getFabricId() {
+                    return new Identifier("screenscraper", "charmaploader");
+                }
+
+                @Override
+                public void reload(ResourceManager manager) {
+                    charRemap.clear();
+                    manager.findResources("screenscraper", path -> path.getPath().endsWith("charmap"))
+                        .forEach((identifier, resource) -> {
+                            charRemap.clear();
+                            String errorExtra = " (" + identifier + " in " + resource.getResourcePackName() + ")";
+                            try (InputStream stream = resource.getInputStream()) {
+                                BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+                                String line;
+                                int i = 0;
+                                HashMap<Byte, String> newMap = new HashMap<>();
+                                while ((line = reader.readLine()) != null) {
+                                    if (line.startsWith("##")) {
+                                        continue;
+                                    }
+                                    line = line.strip();
+                                    if (line.equals("$space")) {
+                                        line = " ";
+                                    }
+                                    newMap.put((byte) i++, line);
+                                }
+                                if (i != 256) {
+                                    throw new RuntimeException("Invalid charmap file: " + i + " lines (want 256)" + errorExtra);
+                                }
+                                LOG_MAIN.info("Loaded charmap" + errorExtra + " with " + newMap.size() + " entries");
+                                newMap.putIfAbsent((byte) '\n', "\n");
+                                charRemap = newMap;
+                            } catch (IOException e) {
+                                LOG_MAIN.error("Failed to load charmap!!" + errorExtra, e);
+                            }
+                        });
+                }
+            }
+        );
     }
 
     /**
@@ -62,7 +114,7 @@ public class ScreenScraperClient implements ClientModInitializer {
      * @param dataPackage contents of the monitor
      * @return was the operation successful?
      */
-    public boolean saveFile(BlockPos pos, TextOnlyPackage dataPackage) {
+    public boolean saveFile(BlockPos pos, int monW, int monH, LineBytePack dataPackage, LineBytePack backgroundPackage, LineBytePack foregroundPackage) {
         Path file = FabricLoader.getInstance().getGameDir();
         file = file.resolve("monitors");
         //noinspection ResultOfMethodCallIgnored
@@ -90,7 +142,26 @@ public class ScreenScraperClient implements ClientModInitializer {
         File f = file.toFile();
         // Write the file
         try (FileWriter fw = new FileWriter(f)) {
-            fw.write(dataPackage.data());
+            fw.write("ss v2\n");
+            fw.write("monitor size " + monW + " " + monH + "\n");
+            for (byte[] bs : dataPackage.data()) {
+                for (byte b : bs) {
+                    fw.write(charRemap.getOrDefault(b, "�"));  // � is intentional
+                }
+                fw.write("\n");
+            }
+            for (byte[] bs : backgroundPackage.data()) {
+                for (byte b : bs) {
+                    fw.write(charRemap.getOrDefault(b, "�"));  // � is intentional
+                }
+                fw.write("\n");
+            }
+            for (byte[] bs : foregroundPackage.data()) {
+                for (byte b : bs) {
+                    fw.write(charRemap.getOrDefault(b, "�"));  // � is intentional
+                }
+                fw.write("\n");
+            }
         } catch (IOException e) {
             LOG_MAIN.error("Failed to write file", e);
             return false;
