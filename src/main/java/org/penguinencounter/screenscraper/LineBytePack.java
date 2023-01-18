@@ -8,7 +8,6 @@ import java.util.List;
 public record LineBytePack(List<byte[]> data) {
 
     public static LineBytePack import_char(int w, int h, ByteBuf data) {
-        ScreenScraperClient.LOG_MAIN.info("Import " + data.readableBytes() + " mon bytes");
         //noinspection GrazieInspection
         data.skipBytes(10); // int int bool 2*nybble
         List<byte[]> builder1 = new ArrayList<>();
@@ -35,7 +34,6 @@ public record LineBytePack(List<byte[]> data) {
     }
 
     public static LineBytePack import_col_bg(int w, int h, ByteBuf data) {
-        ScreenScraperClient.LOG_MAIN.info("Import " + data.readableBytes() + " mon color bg bytes");
         //noinspection GrazieInspection
         data.skipBytes(10); // int int bool 2*nybble
         List<byte[]> builder1 = new ArrayList<>();
@@ -62,7 +60,6 @@ public record LineBytePack(List<byte[]> data) {
     }
 
     public static LineBytePack import_col_fg(int w, int h, ByteBuf data) {
-        ScreenScraperClient.LOG_MAIN.info("Import " + data.readableBytes() + " mon color bg bytes");
         //noinspection GrazieInspection
         data.skipBytes(10); // int int bool 2*nybble
         List<byte[]> builder1 = new ArrayList<>();
