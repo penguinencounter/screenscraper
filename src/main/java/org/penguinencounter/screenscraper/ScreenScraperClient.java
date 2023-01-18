@@ -88,6 +88,8 @@ public class ScreenScraperClient implements ClientModInitializer {
                                     line = line.strip();
                                     if (line.equals("$space")) {
                                         line = " ";
+                                    } else if (line.startsWith("\\u")) {
+                                        line = new String(Character.toChars(Integer.parseInt(line.substring(2), 16)));
                                     }
                                     newMap.put((byte) i++, line);
                                 }
