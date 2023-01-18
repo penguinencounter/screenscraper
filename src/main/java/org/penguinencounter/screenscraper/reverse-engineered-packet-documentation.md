@@ -1,4 +1,5 @@
 ## TerminalState
+
 ```
 boolean color
 boolean compress
@@ -13,6 +14,7 @@ false:
 ```
 
 ## compressed buffer
+
 ```
 int cursorX
 int cursorY

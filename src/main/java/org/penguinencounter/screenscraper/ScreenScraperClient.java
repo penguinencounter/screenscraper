@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,6 +30,7 @@ public class ScreenScraperClient implements ClientModInitializer {
     /**
      * matches SemVer (MAJOR.MINOR.PATCH+extra?)
      * but isn't a development version (contains dev in the 'extra' part)
+     *
      * @param version the version string to check
      * @return true if the version is a release version
      */
@@ -63,48 +65,48 @@ public class ScreenScraperClient implements ClientModInitializer {
         // Load up the mapping file from assets/screenscraper/charmap
 
         ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(
-            new SimpleSynchronousResourceReloadListener() {
-                @Override
-                public Identifier getFabricId() {
-                    return new Identifier("screenscraper", "charmaploader");
-                }
+                new SimpleSynchronousResourceReloadListener() {
+                    @Override
+                    public Identifier getFabricId() {
+                        return new Identifier("screenscraper", "charmaploader");
+                    }
 
-                @Override
-                public void reload(ResourceManager manager) {
-                    charRemap.clear();
-                    manager.findResources("screenscraper", path -> path.getPath().endsWith("charmap"))
-                        .forEach((identifier, resource) -> {
-                            charRemap.clear();
-                            String errorExtra = " (" + identifier + " in " + resource.getResourcePackName() + ")";
-                            try (InputStream stream = resource.getInputStream()) {
-                                BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-                                String line;
-                                int i = 0;
-                                HashMap<Byte, String> newMap = new HashMap<>();
-                                while ((line = reader.readLine()) != null) {
-                                    if (line.startsWith("##")) {
-                                        continue;
+                    @Override
+                    public void reload(ResourceManager manager) {
+                        charRemap.clear();
+                        manager.findResources("screenscraper", path -> path.getPath().endsWith("charmap"))
+                                .forEach((identifier, resource) -> {
+                                    charRemap.clear();
+                                    String errorExtra = " (" + identifier + " in " + resource.getResourcePackName() + ")";
+                                    try (InputStream stream = resource.getInputStream()) {
+                                        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+                                        String line;
+                                        int i = 0;
+                                        HashMap<Byte, String> newMap = new HashMap<>();
+                                        while ((line = reader.readLine()) != null) {
+                                            if (line.startsWith("##")) {
+                                                continue;
+                                            }
+                                            line = line.strip();
+                                            if (line.equals("$space")) {
+                                                line = " ";
+                                            } else if (line.startsWith("\\u")) {
+                                                line = new String(Character.toChars(Integer.parseInt(line.substring(2), 16)));
+                                            }
+                                            newMap.put((byte) i++, line);
+                                        }
+                                        if (i != 256) {
+                                            throw new RuntimeException("Invalid charmap file: " + i + " lines (want 256)" + errorExtra);
+                                        }
+                                        LOG_MAIN.info("Loaded charmap" + errorExtra + " with " + newMap.size() + " entries");
+                                        newMap.putIfAbsent((byte) '\n', "\n");
+                                        charRemap = newMap;
+                                    } catch (IOException e) {
+                                        LOG_MAIN.error("Failed to load charmap!!" + errorExtra, e);
                                     }
-                                    line = line.strip();
-                                    if (line.equals("$space")) {
-                                        line = " ";
-                                    } else if (line.startsWith("\\u")) {
-                                        line = new String(Character.toChars(Integer.parseInt(line.substring(2), 16)));
-                                    }
-                                    newMap.put((byte) i++, line);
-                                }
-                                if (i != 256) {
-                                    throw new RuntimeException("Invalid charmap file: " + i + " lines (want 256)" + errorExtra);
-                                }
-                                LOG_MAIN.info("Loaded charmap" + errorExtra + " with " + newMap.size() + " entries");
-                                newMap.putIfAbsent((byte) '\n', "\n");
-                                charRemap = newMap;
-                            } catch (IOException e) {
-                                LOG_MAIN.error("Failed to load charmap!!" + errorExtra, e);
-                            }
-                        });
+                                });
+                    }
                 }
-            }
         );
     }
 
@@ -112,11 +114,14 @@ public class ScreenScraperClient implements ClientModInitializer {
      * "Do you really need this much null safety?"
      * Saves a file with the data package.
      * Name is determined by current game conditions.
-     * @param pos position of the monitor
+     *
+     * @param pos         position of the monitor
      * @param dataPackage contents of the monitor
      * @return was the operation successful?
      */
-    public boolean saveFile(BlockPos pos, int monW, int monH, LineBytePack dataPackage, LineBytePack backgroundPackage, LineBytePack foregroundPackage) {
+    public boolean saveFile(BlockPos pos, int monW, int monH,
+                            LineBytePack dataPackage, LineBytePack backgroundPackage, LineBytePack foregroundPackage,
+                            ColorPallete pallete) {
         Path file = FabricLoader.getInstance().getGameDir();
         file = file.resolve("monitors");
         //noinspection ResultOfMethodCallIgnored
@@ -127,7 +132,7 @@ public class ScreenScraperClient implements ClientModInitializer {
         String dim = client.player.world.getRegistryKey().getValue().toString();
         String wrld;
         if (client.getGame().getCurrentSession() == null) return false;
-        if (client.getGame().getCurrentSession().isRemoteServer()){
+        if (client.getGame().getCurrentSession().isRemoteServer()) {
             if (client.getCurrentServerEntry() == null) return false;
             wrld = client.getCurrentServerEntry().address;
         } else {
@@ -143,7 +148,8 @@ public class ScreenScraperClient implements ClientModInitializer {
         file = file.resolve(wrld + "_in_" + dim + "_at_" + pos.getX() + "_" + pos.getY() + "_" + pos.getZ() + ".txt");
         File f = file.toFile();
         // Write the file
-        try (FileWriter fw = new FileWriter(f)) {
+        try (OutputStreamWriter fw =
+                     new OutputStreamWriter(new FileOutputStream(f), StandardCharsets.UTF_8)) {
             fw.write("ss v2\n");
             fw.write("monitor size " + monW + " " + monH + "\n");
             for (byte[] bs : dataPackage.data()) {
@@ -163,6 +169,12 @@ public class ScreenScraperClient implements ClientModInitializer {
                     fw.write(charRemap.getOrDefault(b, "�"));  // � is intentional
                 }
                 fw.write("\n");
+            }
+            fw.write("pallete:\n");
+            int i = 0;
+            for (int color : pallete.colors()) {
+                fw.write(String.format("%s %06x\n", ByteTools.nybToHex.get(i), color));
+                i++;
             }
         } catch (IOException e) {
             LOG_MAIN.error("Failed to write file", e);

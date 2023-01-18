@@ -7,6 +7,7 @@ public class ByteTools {
     /**
      * Return the two "nybbles" in a byte
      * A nybble is 4 bits, or half a byte.
+     *
      * @param b input byte
      * @return int[2] two nybbles, high then low
      */
@@ -15,6 +16,7 @@ public class ByteTools {
     }
 
     public static final HashMap<Integer, Character> nybToHex = new HashMap<>();
+
     static {
         nybToHex.put(0, '0');
         nybToHex.put(1, '1');
