@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -143,7 +144,8 @@ public class ScreenScraperClient implements ClientModInitializer {
         file = file.resolve(wrld + "_in_" + dim + "_at_" + pos.getX() + "_" + pos.getY() + "_" + pos.getZ() + ".txt");
         File f = file.toFile();
         // Write the file
-        try (FileWriter fw = new FileWriter(f)) {
+        try (OutputStreamWriter fw =
+             new OutputStreamWriter(new FileOutputStream(f), StandardCharsets.UTF_8)) {
             fw.write("ss v2\n");
             fw.write("monitor size " + monW + " " + monH + "\n");
             for (byte[] bs : dataPackage.data()) {
